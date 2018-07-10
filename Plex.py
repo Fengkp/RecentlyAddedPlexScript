@@ -1,13 +1,27 @@
 import smtplib
 import getpass
 import re
+import datetime
 from plexapi.myplex import MyPlexAccount
 
-def formatSearchStr(toFormat):
-    firstFormat = re.sub(r'.*:', '', toFormat)
-    secondFormat = re.sub(r'>.', '', firstFormat)
-    print (secondFormat)
-    return secondFormat
+def initiatePlex():
+    global plexInstance
+    plexLogin = input("User: ")
+    plexPassword = getpass.getpass()
+    plexAccount = MyPlexAccount(plexLogin, plexPassword)
+    plexInstance = plexAccount.resource('MediaServer').connect()
+
+def formatTitle(toFormat):
+    formatFront = re.sub(r'.*:', '', toFormat)
+    formatBack = re.sub(r'>', '', formatFront)
+    formatted = hyphenStrCheck(formatBack)
+    return formatted
+
+def hyphenStrCheck(toCheck):
+    regHyphen = re.compile(r'-')
+    if regHyphen.search(toCheck):
+        return re.sub(regHyphen, " ", toCheck)
+    return toCheck
 
 def sendEmail():
     emailServer = smtplib.SMTP('smtp.gmail.com', 587)       # If smptlib.SMTP() is unsuccessful then try
@@ -15,26 +29,27 @@ def sendEmail():
     print(emailServer.ehlo())                  # ALWAYS CALL FIRST AFTER CREATING OBJ (250 = success)
                                         #:Sends a "hello" to the server, making sure you get a response
     emailServer.starttls()                  # Enables encryption for your connection
-    email = input("Email: ")
-    password = getpass.getpass()        # Masks password
+    emailLogin = input("Email: ")
+    emailPassword = getpass.getpass()        # Masks password
     receipientEmail = input("Receipient: ")
-    subject = input("Subject: ")
-    message = input("Message: ")
+    emailSubject = input("Subject: ")
+    emailMessage = input("Message: ")
     try:
-        print(emailServer.login(email, password))
+        print(emailServer.login(emailLogin, emailPassword))
     except Exception:
         print("Can't login")
         return
-    password = None
-    print(password)
-    emailServer.sendmail(email, receipientEmail, 'Subject: ' + subject + '\n' + message)
+    emailPassword = None
+    emailServer.sendmail(emailLogin, receipientEmail, 'Subject: ' + emailSubject + '\n' + emailMessage)
     emailServer.quit()
 
-account = MyPlexAccount('****', '****')
-plex = account.resource('MediaServer').connect()
-new = formatSearchStr(str(plex.library.section('Movies').recentlyAdded(1)))
-print(plex.library.section('Movies').search(new))
-#print(plex.library.section('Movies').search('Rush Hour'))
-#plex.library.section
+initiatePlex()
+movies = plexInstance.library.section('Movies')
+television = plexInstance.library.section('Television')
+recentMovies = []
 
+for movie in movies.recentlyAdded(10):
+    recentMovies.append(formatTitle(str(movie)))
+for movie in recentMovies:
+    print(movies.get(movie).addedAt)
 #sendEmail()
